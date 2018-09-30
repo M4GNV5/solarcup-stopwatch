@@ -4,9 +4,14 @@ from datetime import datetime
 import cv2
 import numpy as np
 
-size = (1080, 1920)
-color = 0
+size = (1080, 1920, 3)
+color = (0, 0, 0)
 laneCount = 2
+logos = [
+	"solarcup.jpg",
+	"buergernetz.png",
+	"esv.jpg"
+]
 
 teams = []
 highscores = []
@@ -43,11 +48,23 @@ with open("teams.csv") as fd:
 		split = line.split(",")
 		teams.append({"name": split[0], "running": False, "start": dummy, "stop": dummy})
 
+logos = logos[::-1]
+for i, path in enumerate(logos):
+	img = cv2.imread(path)
+	logos[i] = img
+
 cv2.namedWindow("dashboard", cv2.WND_PROP_FULLSCREEN)
 cv2.setWindowProperty("dashboard", cv2.WND_PROP_FULLSCREEN, 1)
 img = np.zeros(size, dtype=np.uint8)
 while True:
-	img.fill(255)
+	img[:,:] = (255, 255, 255)
+
+	x = size[1] - 20
+	for logo in logos:
+		h, w, c = logo.shape
+		y = size[0] - h - 20
+		img[y : y + h, x - w : x] = logo
+		x = x - w - 20
 
 	now = datetime.now()
 	x, y = 20, 20
