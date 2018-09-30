@@ -12,6 +12,8 @@ logos = [
 	"buergernetz.png",
 	"esv.jpg"
 ]
+min_rect_size = 10000
+rect_color = (0, 0, 255)
 
 teams = []
 highscores = []
@@ -51,6 +53,7 @@ for i, path in enumerate(logos):
 	img = cv2.imread(path)
 	logos[i] = img
 
+cap = cv2.VideoCapture(0)
 cv2.namedWindow("dashboard", cv2.WND_PROP_FULLSCREEN)
 cv2.setWindowProperty("dashboard", cv2.WND_PROP_FULLSCREEN, 1)
 img = np.zeros(size, dtype=np.uint8)
@@ -79,6 +82,20 @@ while True:
 
 		w, h = putTextTopLeft(img, (x, y), formatTime(team))
 		y = y + h + 20
+
+	y = y + 100
+	ret, frame = cap.read()
+	if ret:
+		hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+		thresh = cv2.inRange(hsv, (115, 30, 30), (125, 255, 255))
+		contours, hierarchy = cv2.findContours(thresh, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
+		for contour in contours:
+			cx, cy, w, h = cv2.boundingRect(contour)
+			if w * h >= min_rect_size:
+				cv2.rectangle(frame, (cx, cy), (cx + w, cy + h), rect_color, 3)
+
+		h, w, c = frame.shape
+		img[y : y + h, x : x + w] = frame
 
 	x, y = size[1] / 2 + 20, 20
 	for team in highscores:
