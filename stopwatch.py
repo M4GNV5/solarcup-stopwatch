@@ -37,16 +37,14 @@ def stopTeam(team):
 		with open("output.csv", "a") as fd:
 			fd.write("%s,%s,%s,%s\n" % (team["name"], team["start"], team["stop"], formatTime(team)))
 
-with open("teams.csv") as fd:
-	lines = fd.readlines()[1:]
+with open("teams.list") as fd:
 	dummy = datetime(2018, 1, 1)
-	for line in lines:
+	for line in fd:
 		line = line.strip()
 		if line == "":
 			break
 
-		split = line.split(",")
-		teams.append({"name": split[0], "running": False, "start": dummy, "stop": dummy})
+		teams.append({"name": line, "running": False, "start": dummy, "stop": dummy})
 
 logos = logos[::-1]
 for i, path in enumerate(logos):
