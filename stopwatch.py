@@ -3,6 +3,8 @@ from time import sleep
 from datetime import datetime
 import cv2
 import numpy as np
+import serial
+import sys
 
 size = (1080, 1920, 3)
 color = (0, 0, 0)
@@ -32,10 +34,15 @@ def formatTime(team):
 	millis = int(diff.microseconds / 10000)
 	return "%02d.%02d" % (seconds, millis)
 
+def startTeam(team):
+	if not team["running"]:
+		team["running"] = True
+		team["start"] = now
+		team["stop"] = now
+
 def stopTeam(team):
 	if team["running"]:
 		team["running"] = False
-
 		with open("output.csv", "a") as fd:
 			fd.write("%s,%s,%s,%s\n" % (team["name"], team["start"], team["stop"], formatTime(team)))
 
@@ -53,6 +60,7 @@ for i, path in enumerate(logos):
 	img = cv2.imread(path)
 	logos[i] = img
 
+ser = serial.Serial(sys.argv[1], 9600, timeout=0)
 cap = cv2.VideoCapture(0)
 cv2.namedWindow("dashboard", cv2.WND_PROP_FULLSCREEN)
 cv2.setWindowProperty("dashboard", cv2.WND_PROP_FULLSCREEN, 1)
@@ -87,7 +95,7 @@ while True:
 	ret, frame = cap.read()
 	if ret:
 		hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
-		thresh = cv2.inRange(hsv, (115, 30, 30), (125, 255, 255))
+		thresh = cv2.inRange(hsv, (110, 30, 30), (130, 255, 255))
 		contours, hierarchy = cv2.findContours(thresh, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
 		for contour in contours:
 			cx, cy, w, h = cv2.boundingRect(contour)
@@ -102,6 +110,22 @@ while True:
 		w1, h1 = putTextTopLeft(img, (x, y), formatTime(team))
 		w2, h2 = putTextTopLeft(img, (x + w1 + 10, y), team["name"])
 		y = y + max(h1, h2) + 20
+
+	line = ser.readline()
+	if line:
+		line2 = line
+		while line == line2:
+			line2 = ser.readline()
+
+		line = line.strip()
+		if line == "A_start":
+			startTeam(teams[current])
+		elif line == "A_stop":
+			stopTeam(teams[current])
+		elif line == "B_start":
+			startTeam(teams[current + 1])
+		elif line == "B_stop":
+			stopTeam(teams[current + 1])
 
 	cv2.imshow("dashboard", img)
 	key = cv2.waitKey(1) & 0xff
@@ -118,6 +142,4 @@ while True:
 		if team["running"]:
 			stopTeam(team)
 		else:
-			team["start"] = now
-			team["stop"] = now
-			team["running"] = True
+			startTeam(team)
