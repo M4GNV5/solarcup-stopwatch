@@ -60,7 +60,11 @@ for i, path in enumerate(logos):
 	img = cv2.imread(path)
 	logos[i] = img
 
-ser = serial.Serial(sys.argv[1], 9600, timeout=0)
+if len(sys.argv) > 1:
+	ser = serial.Serial(sys.argv[1], 9600, timeout=0)
+else:
+	ser = None
+
 cap = cv2.VideoCapture(0)
 cv2.namedWindow("dashboard", cv2.WND_PROP_FULLSCREEN)
 cv2.setWindowProperty("dashboard", cv2.WND_PROP_FULLSCREEN, 1)
@@ -111,21 +115,22 @@ while True:
 		w2, h2 = putTextTopLeft(img, (x + w1 + 10, y), team["name"])
 		y = y + max(h1, h2) + 20
 
-	line = ser.readline()
-	if line:
-		line2 = line
-		while line == line2:
-			line2 = ser.readline()
+	if ser:
+		line = ser.readline()
+		if line:
+			line2 = line
+			while line == line2:
+				line2 = ser.readline()
 
-		line = line.strip()
-		if line == "A_start":
-			startTeam(teams[current])
-		elif line == "A_stop":
-			stopTeam(teams[current])
-		elif line == "B_start":
-			startTeam(teams[current + 1])
-		elif line == "B_stop":
-			stopTeam(teams[current + 1])
+			line = line.strip()
+			if line == "A_start":
+				startTeam(teams[current])
+			elif line == "A_stop":
+				stopTeam(teams[current])
+			elif line == "B_start":
+				startTeam(teams[current + 1])
+			elif line == "B_stop":
+				stopTeam(teams[current + 1])
 
 	cv2.imshow("dashboard", img)
 	key = cv2.waitKey(1) & 0xff
@@ -143,3 +148,7 @@ while True:
 			stopTeam(team)
 		else:
 			startTeam(team)
+
+cap.release()
+if ser:
+	ser.close()
