@@ -43,8 +43,21 @@ def startTeam(team):
 def stopTeam(team):
 	if team["running"]:
 		team["running"] = False
+		diff = team["stop"] - team["start"]
+		if team["best"] == None or diff < team["best"]:
+			team["best"] = diff
+
 		with open("output.csv", "a") as fd:
 			fd.write("%s,%s,%s,%s\n" % (team["name"], team["start"], team["stop"], formatTime(team)))
+
+def stopAllTeams():
+	max = len(teams)
+	if current < max:
+		stopTeam(teams[current])
+	if current + 1 < max:
+		stopTeam(teams[current + 1])
+
+	highscores = sorted(filter(lambda x: x["best"] != None, teams), key=lambda x: x["best"])
 
 with open("teams.list") as fd:
 	dummy = datetime(2018, 1, 1)
@@ -53,7 +66,7 @@ with open("teams.list") as fd:
 		if line == "":
 			break
 
-		teams.append({"name": line, "running": False, "start": dummy, "stop": dummy})
+		teams.append({"name": line, "running": False, "start": dummy, "stop": dummy, "best": None})
 
 logos = logos[::-1]
 for i, path in enumerate(logos):
@@ -81,7 +94,8 @@ while True:
 
 	now = datetime.now()
 	x, y = 20, 20
-	for team in teams[current : current + laneCount]:
+	for i in range(current, current + laneCount):
+		team = teams[i]
 		if "start" not in team:
 			team["start"] = now
 			team["stop"] = now
@@ -133,14 +147,20 @@ while True:
 				stopTeam(teams[current + 1])
 
 	cv2.imshow("dashboard", img)
-	key = cv2.waitKey(1) & 0xff
+	rawKey = cv2.waitKey(1)
+	key = rawKey & 0xff
 	if key == ord('q'):
 		break
-	elif key == ord(' '):
-		stopTeam(teams[current])
-		stopTeam(teams[current + 1])
+	elif rawKey == 0x10ff53: #right arrow
+		stopAllTeams()
 		current = current + laneCount
-		highscores = sorted(teams[0 : current], key=lambda x: x["stop"] - x["start"])
+		if current + laneCount > len(teams):
+			current = current - len(teams)
+	elif rawKey == 0x10ff51: #left arrow
+		stopAllTeams()
+		current = current - laneCount
+		if current <= -laneCount:
+			current = current + len(teams)
 	elif key > ord('0') and key <= ord('0') + laneCount:
 		i = key - ord('0') - 1
 		team = teams[current + i]
