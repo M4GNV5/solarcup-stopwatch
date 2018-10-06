@@ -27,8 +27,13 @@ def putTextTopLeft(img, pos, text, scale=2, thick=3, font=cv2.FONT_HERSHEY_SIMPL
 	cv2.putText(img, text, (x, y + h), font, scale, color, thick)
 	return w, h
 
-def formatTime(team):
-	diff = team["stop"] - team["start"]
+def resortHighscore():
+	global highscores
+	highscores = sorted(filter(lambda x: x["best"] != None, teams), key=lambda x: x["best"])
+
+def formatTime(team, diff=None):
+	if diff == None:
+		diff = team["stop"] - team["start"]
 	#mins = int(diff.seconds / 60)
 	seconds = int(diff.seconds)# % 60)
 	millis = int(diff.microseconds / 10000)
@@ -43,6 +48,7 @@ def startTeam(team):
 def stopTeam(team):
 	if team["running"]:
 		team["running"] = False
+
 		diff = team["stop"] - team["start"]
 		if team["best"] == None or diff < team["best"]:
 			team["best"] = diff
@@ -54,10 +60,12 @@ def stopAllTeams():
 	max = len(teams)
 	if current < max:
 		stopTeam(teams[current])
+		teams[current]["stop"] = teams[current]["start"]
 	if current + 1 < max:
 		stopTeam(teams[current + 1])
+		teams[current + 1]["stop"] = teams[current + 1]["start"]
 
-	highscores = sorted(filter(lambda x: x["best"] != None, teams), key=lambda x: x["best"])
+	resortHighscore()
 
 with open("teams.list") as fd:
 	dummy = datetime(2018, 1, 1)
@@ -125,7 +133,7 @@ while True:
 
 	x, y = size[1] / 2 + 20, 20
 	for team in highscores:
-		w1, h1 = putTextTopLeft(img, (x, y), formatTime(team))
+		w1, h1 = putTextTopLeft(img, (x, y), formatTime(team, team["best"]))
 		w2, h2 = putTextTopLeft(img, (x + w1 + 10, y), team["name"])
 		y = y + max(h1, h2) + 20
 
@@ -166,6 +174,7 @@ while True:
 		team = teams[current + i]
 		if team["running"]:
 			stopTeam(team)
+			resortHighscore()
 		else:
 			startTeam(team)
 
