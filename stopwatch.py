@@ -58,12 +58,10 @@ def stopTeam(team):
 
 def stopAllTeams():
 	max = len(teams)
-	if current < max:
-		stopTeam(teams[current])
-		teams[current]["stop"] = teams[current]["start"]
-	if current + 1 < max:
-		stopTeam(teams[current + 1])
-		teams[current + 1]["stop"] = teams[current + 1]["start"]
+	for i in range(0, laneCount):
+		if current + i < max:
+			stopTeam(teams[current + i])
+			teams[current + 1]["stop"] = teams[current + 1]["start"]
 
 	resortHighscore()
 
@@ -155,16 +153,16 @@ while True:
 				stopTeam(teams[current + 1])
 
 	cv2.imshow("dashboard", img)
-	rawKey = cv2.waitKey(1)
+	rawKey = cv2.waitKey(1) & 0xfffff
 	key = rawKey & 0xff
 	if key == ord('q'):
 		break
-	elif rawKey == 0x10ff53: #right arrow
+	elif rawKey == 0xff53: #right arrow
 		stopAllTeams()
 		current = current + laneCount
 		if current + laneCount > len(teams):
 			current = current - len(teams)
-	elif rawKey == 0x10ff51: #left arrow
+	elif rawKey == 0xff51: #left arrow
 		stopAllTeams()
 		current = current - laneCount
 		if current <= -laneCount:
