@@ -18,16 +18,39 @@ logos = [
 min_rect_size = 10000
 rect_color = (0, 0, 255)
 fps = 60
+dummyTime = datetime(2018, 1, 1)
 
 teams = []
+activeTeams = [None] * laneCount
 highscores = []
-current = 0
+editing = None
+editingId = 0
+editingResult = None
 
-def putTextTopLeft(img, pos, text, scale=2, thick=3, font=cv2.FONT_HERSHEY_SIMPLEX):
+def laneIdToText(id):
+	return chr(ord('A') + id)
+
+def putText(img, pos, text, scale=2, thick=3, font=cv2.FONT_HERSHEY_SIMPLEX):
+	cv2.putText(img, text, pos, font, scale, color, thick)
+
+def putTextTopLeft(img, pos, text, scale=2, thick=3, font=cv2.FONT_HERSHEY_SIMPLEX, maxWidth=0):
 	(w, h), baseLine = cv2.getTextSize(text, font, scale, thick)
+	if maxWidth > 0:
+		while w > maxWidth:
+			(w, h), baseLine = cv2.getTextSize(text, font, scale, thick)
+			text = text[0:-1]
+
 	x, y = pos
-	cv2.putText(img, text, (x, y + h), font, scale, color, thick)
+	putText(img, (x, y + h), text, scale, thick, font)
 	return w, h
+
+def resetEditingResult():
+	global editingResult
+	found = filter(lambda x: x["id"] == editingId, teams)
+	if len(found) == 0:
+		editingResult = None
+	else:
+		editingResult = found[0]
 
 def resortHighscore():
 	global highscores
@@ -62,22 +85,33 @@ def stopTeam(team):
 			fd.write("%s,%s,%s,%s\n" % (team["name"], team["start"], team["stop"], formatTime(team)))
 
 def stopAllTeams():
-	max = len(teams)
-	for i in range(0, laneCount):
-		if current + i < max:
-			stopTeam(teams[current + i])
-			teams[current + 1]["stop"] = teams[current + 1]["start"]
+	for team in activeTeams:
+		if team != None:
+			stopTeam(team)
+			team["start"] = dummyTime
+			team["stop"] = dummyTime
 
+	activeTeams[:] = None
 	resortHighscore()
 
-with open("teams.list") as fd:
-	dummy = datetime(2018, 1, 1)
+with open("teams.csv") as fd:
 	for line in fd:
 		line = line.strip()
 		if line == "":
 			break
 
-		teams.append({"name": line, "running": False, "start": dummy, "stop": dummy, "best": None})
+		id, name, best = line.split(",")
+		if best == "":
+			best = None
+
+		teams.append({
+			"id": int(id),
+			"name": name,
+			"running": False,
+			"start": dummyTime,
+			"stop": dummyTime,
+			"best": best
+		})
 
 def serialWorker():
 	ser = serial.Serial(sys.argv[1], 9600)
@@ -118,16 +152,14 @@ while True:
 
 	now = datetime.now()
 	x, y = 20, 20
-	for i in range(current, current + laneCount):
-		team = teams[i]
-		if "start" not in team:
-			team["start"] = now
-			team["stop"] = now
+	for i, team in enumerate(activeTeams):
+		if team == None:
+			continue
 
 		if team["running"]:
 			team["stop"] = now
 
-		w, h = putTextTopLeft(img, (x, y), team["name"])
+		w, h = putTextTopLeft(img, (x, y), "Bahn %s: %s" % (laneIdToText(i), team["name"]), maxWidth=size[1] / 2)
 		y = y + h + 10
 
 		w, h = putTextTopLeft(img, (x, y), formatTime(team))
@@ -147,6 +179,14 @@ while True:
 		h, w, c = frame.shape
 		img[y : y + h, x : x + w] = frame
 
+	h, w, c = size
+	if editing != None:
+		if editingResult == None:
+			name = "unknown team"
+		else:
+			name = editingResult["name"]
+		putText(img, (5, h - 5), "Team auf Bahn %s: %d (%s)" % (laneIdToText(editing), editingId, name), scale=1)
+
 	x, y = size[1] / 2 + 20, 20
 	for team in highscores:
 		w1, h1 = putTextTopLeft(img, (x, y), formatTime(team, team["best"]))
@@ -158,23 +198,27 @@ while True:
 	key = rawKey & 0xff
 	if key == ord('q'):
 		break
-	elif rawKey == 0xff53: #right arrow
-		stopAllTeams()
-		current = current + laneCount
-		if current + laneCount > len(teams):
-			current = current - len(teams)
-	elif rawKey == 0xff51: #left arrow
-		stopAllTeams()
-		current = current - laneCount
-		if current <= -laneCount:
-			current = current + len(teams)
-	elif key > ord('0') and key <= ord('0') + laneCount:
-		i = key - ord('0') - 1
-		team = teams[current + i]
-		if team["running"]:
-			stopTeam(team)
-			resortHighscore()
+	elif rawKey == 0x001b: #esc
+		editing = None
+		editingId = 0
+	elif rawKey == 0x000a: #enter
+		if editingResult != None:
+			activeTeams[editing] = editingResult
+			editing = None
+			editingId = 0
+	elif rawKey == 0xff08: #backspace
+		editingId = editingId / 10
+		resetEditingResult()
+	elif key >= ord('a') and key < ord('a') + laneCount:
+		i = key - ord('a')
+		if activeTeams[i] and activeTeams[i]["running"]:
+			stopTeam(activeTeams[i])
 		else:
-			startTeam(team)
+			editing = i
+			editingId = 0
+			resetEditingResult()
+	elif editing != None and key >= ord('0') and key <= ord('9'):
+		editingId = editingId * 10 + key - ord('0')
+		resetEditingResult()
 
 cap.release()
