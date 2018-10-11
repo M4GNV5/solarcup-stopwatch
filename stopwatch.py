@@ -5,6 +5,7 @@ import cv2
 import numpy as np
 import serial
 import sys
+import threading
 
 size = (1080, 1920, 3)
 color = (0, 0, 0)
@@ -41,13 +42,16 @@ def formatTime(team, diff=None):
 
 def startTeam(team):
 	if not team["running"]:
+		now = datetime.now()
 		team["running"] = True
 		team["start"] = now
 		team["stop"] = now
 
 def stopTeam(team):
 	if team["running"]:
+		now = datetime.now()
 		team["running"] = False
+		team["stop"] = now
 
 		diff = team["stop"] - team["start"]
 		if team["best"] == None or diff < team["best"]:
@@ -74,15 +78,28 @@ with open("teams.list") as fd:
 
 		teams.append({"name": line, "running": False, "start": dummy, "stop": dummy, "best": None})
 
+def serialWorker():
+	ser = serial.Serial(sys.argv[1], 9600)
+	while True:
+		char = ser.read(1)
+		if line == "1": #"A_start"
+			startTeam(teams[current])
+		elif line == "2": #"A_stop"
+			stopTeam(teams[current])
+		elif line == "3": #"B_start"
+			startTeam(teams[current + 1])
+		elif line == "4": #"B_stop"
+			stopTeam(teams[current + 1])
+
 logos = logos[::-1]
 for i, path in enumerate(logos):
 	img = cv2.imread(path)
 	logos[i] = img
 
 if len(sys.argv) > 1:
-	ser = serial.Serial(sys.argv[1], 9600, timeout=0)
-else:
-	ser = None
+	worker = threading.Thread(target=serialWorker, name="serialWorker")
+	worker.daemon = True
+	worker.start()
 
 cap = cv2.VideoCapture(0)
 cv2.namedWindow("dashboard", cv2.WND_PROP_FULLSCREEN)
@@ -135,23 +152,6 @@ while True:
 		w2, h2 = putTextTopLeft(img, (x + w1 + 10, y), team["name"])
 		y = y + max(h1, h2) + 20
 
-	if ser:
-		line = ser.readline()
-		if line:
-			line2 = line
-			while line == line2:
-				line2 = ser.readline()
-
-			line = line.strip()
-			if line == "A_start":
-				startTeam(teams[current])
-			elif line == "A_stop":
-				stopTeam(teams[current])
-			elif line == "B_start":
-				startTeam(teams[current + 1])
-			elif line == "B_stop":
-				stopTeam(teams[current + 1])
-
 	cv2.imshow("dashboard", img)
 	rawKey = cv2.waitKey(1) & 0xfffff
 	key = rawKey & 0xff
@@ -177,5 +177,3 @@ while True:
 			startTeam(team)
 
 cap.release()
-if ser:
-	ser.close()
