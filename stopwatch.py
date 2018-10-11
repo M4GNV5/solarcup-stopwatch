@@ -17,6 +17,7 @@ logos = [
 ]
 min_rect_size = 10000
 rect_color = (0, 0, 255)
+fps = 60
 
 teams = []
 highscores = []
@@ -153,7 +154,7 @@ while True:
 		y = y + max(h1, h2) + 20
 
 	cv2.imshow("dashboard", img)
-	rawKey = cv2.waitKey(1) & 0xfffff
+	rawKey = cv2.waitKey(1000 / fps) & 0xfffff
 	key = rawKey & 0xff
 	if key == ord('q'):
 		break
