@@ -84,6 +84,8 @@ def stopTeam(team):
 		with open("output.csv", "a") as fd:
 			fd.write("%s,%s,%s,%s\n" % (team["name"], team["start"], team["stop"], formatTime(team)))
 
+		resortHighscore()
+
 def stopAllTeams():
 	for team in activeTeams:
 		if team != None:
@@ -117,14 +119,14 @@ def serialWorker():
 	ser = serial.Serial(sys.argv[1], 9600)
 	while True:
 		char = ser.read(1)
-		if line == "1": #"A_start"
-			startTeam(teams[current])
-		elif line == "2": #"A_stop"
-			stopTeam(teams[current])
-		elif line == "3": #"B_start"
-			startTeam(teams[current + 1])
-		elif line == "4": #"B_stop"
-			stopTeam(teams[current + 1])
+		if char == "1": #"A_start"
+			startTeam(activeTeams[0])
+		elif char == "2": #"A_stop"
+			stopTeam(activeTeams[0])
+		elif char == "3": #"B_start"
+			startTeam(activeTeams[1])
+		elif char == "4": #"B_stop"
+			stopTeam(activeTeams[1])
 
 logos = logos[::-1]
 for i, path in enumerate(logos):
