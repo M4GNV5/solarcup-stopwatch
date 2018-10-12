@@ -138,7 +138,6 @@ if len(sys.argv) > 1:
 	worker.daemon = True
 	worker.start()
 
-cap = cv2.VideoCapture(0)
 cv2.namedWindow("dashboard", cv2.WND_PROP_FULLSCREEN)
 cv2.setWindowProperty("dashboard", cv2.WND_PROP_FULLSCREEN, 1)
 img = np.zeros(size, dtype=np.uint8)
@@ -166,20 +165,6 @@ while True:
 
 		w, h = putTextTopLeft(img, (x, y), formatTime(team))
 		y = y + h + 20
-
-	y = y + 100
-	ret, frame = cap.read()
-	if ret:
-		hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
-		thresh = cv2.inRange(hsv, (110, 30, 30), (130, 255, 255))
-		contours, hierarchy = cv2.findContours(thresh, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
-		for contour in contours:
-			cx, cy, w, h = cv2.boundingRect(contour)
-			if w * h >= min_rect_size:
-				cv2.rectangle(frame, (cx, cy), (cx + w, cy + h), rect_color, 3)
-
-		h, w, c = frame.shape
-		img[y : y + h, x : x + w] = frame
 
 	h, w, c = size
 	if editing != None:
@@ -222,5 +207,3 @@ while True:
 	elif editing != None and key >= ord('0') and key <= ord('9'):
 		editingId = editingId * 10 + key - ord('0')
 		resetEditingResult()
-
-cap.release()
