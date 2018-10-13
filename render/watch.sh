@@ -1,17 +1,24 @@
 #!/bin/bash
 
-function insertIntoTemplate()
+host="<target location here>"
+
+function insertAndUploadTemplate()
 {
-	(cat "$1" && printf "\n") \
+	name="$1"
+	(cat "$name.part" && printf "\n") \
 		| tr '\n	' '`' \
 		| xargs -I {} sed 's|%%%|{}|' template.html \
-		| tr '`' '\n'
+		| tr '`' '\n' \
+		> tmp.html
+
+	scp tmp.html "$host/$name/index.html"
+	rm "$name.part"
+	rm tmp.html
 }
 
 while inotifywait -e close_write ../output.csv; do
 	./render
-
-	insertIntoTemplate schueler.part > schueler.html
-	insertIntoTemplate offen.part > offen.html
-	insertIntoTemplate firmen.part > firmen.html
+	insertAndUploadTemplate schueler
+	insertAndUploadTemplate offen
+	insertAndUploadTemplate firmen
 done
