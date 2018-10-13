@@ -29,9 +29,9 @@ renderScores scores     = result
                         = concat [
                 "<tr>",
                     "<td>", show place, "</td>",
+                    "<td>", show time, "</td>",
                     "<td>", show id, "</td>",
                     "<td>", name, "</td>",
-                    "<td>", show time, "</td>",
                 "</tr>",
                 "\n"
             ]
