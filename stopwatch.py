@@ -205,6 +205,14 @@ while True:
 			editing = i
 			editingId = 0
 			resetEditingResult()
-	elif editing != None and key >= ord('0') and key <= ord('9'):
-		editingId = editingId * 10 + key - ord('0')
-		resetEditingResult()
+	elif key >= ord('0') and key <= ord('9'):
+		if editing != None:
+			editingId = editingId * 10 + key - ord('0')
+			resetEditingResult()
+		else:
+			i = key - ord('0')
+			if i < len(activeTeams) and activeTeams[i] != None:
+				if activeTeams[i]["running"]:
+					stopTeam(activeTeams[i])
+				else:
+					startTeam(activeTeams[i])
