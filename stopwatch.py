@@ -65,14 +65,14 @@ def formatTime(team, diff=None):
 	return "%02d.%02d" % (seconds, millis)
 
 def startTeam(team):
-	if not team["running"]:
+	if team != None and not team["running"]:
 		now = datetime.now()
 		team["running"] = True
 		team["start"] = now
 		team["stop"] = now
 
 def stopTeam(team):
-	if team["running"]:
+	if team != None and team["running"]:
 		now = datetime.now()
 		team["running"] = False
 		team["stop"] = now
