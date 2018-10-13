@@ -82,7 +82,8 @@ def stopTeam(team):
 			team["best"] = diff
 
 		with open("output.csv", "a") as fd:
-			fd.write("%s,%s,%s,%s\n" % (team["name"], team["start"], team["stop"], formatTime(team)))
+			fd.write("%s,%s,%s,%s,%s\n"
+				% (team["id"], team["name"], formatTime(team), team["start"], team["stop"]))
 
 		resortHighscore()
 
