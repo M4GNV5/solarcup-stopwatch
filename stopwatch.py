@@ -1,9 +1,10 @@
 from threading import Thread
 from time import sleep
 from datetime import datetime
+from dateutil import parser as dateparser
 import cv2
 import numpy as np
-import serial
+#import serial
 import sys
 import threading
 
@@ -15,17 +16,12 @@ logos = [
 	"buergernetz.png",
 	"esv.jpg"
 ]
-min_rect_size = 10000
-rect_color = (0, 0, 255)
 fps = 60
 dummyTime = datetime(2018, 1, 1)
 
 teams = []
 activeTeams = [None] * laneCount
 highscores = []
-editing = None
-editingId = 0
-editingResult = None
 
 def laneIdToText(id):
 	return chr(ord('A') + id)
@@ -43,14 +39,6 @@ def putTextTopLeft(img, pos, text, scale=2, thick=3, font=cv2.FONT_HERSHEY_SIMPL
 	x, y = pos
 	putText(img, (x, y + h), text, scale, thick, font)
 	return w, h
-
-def resetEditingResult():
-	global editingResult
-	found = filter(lambda x: x["id"] == editingId, teams)
-	if len(found) == 0:
-		editingResult = None
-	else:
-		editingResult = found[0]
 
 def resortHighscore():
 	global highscores
@@ -81,7 +69,7 @@ def stopTeam(team):
 		if team["best"] == None or diff < team["best"]:
 			team["best"] = diff
 
-		with open("output.csv", "a") as fd:
+		with open("runs.csv", "a") as fd:
 			fd.write("%s,%s,%s,%s,%s\n"
 				% (team["id"], team["name"], formatTime(team), team["start"], team["stop"]))
 
@@ -97,15 +85,13 @@ def stopAllTeams():
 	activeTeams[:] = None
 	resortHighscore()
 
-with open("teams.csv") as fd:
+with open("teams.csv", "r") as fd:
 	for line in fd:
 		line = line.strip()
 		if line == "":
-			break
+			continue
 
-		id, name, best = line.split(",")
-		if best == "":
-			best = None
+		id, name = line.split(",")
 
 		teams.append({
 			"id": int(id),
@@ -113,8 +99,34 @@ with open("teams.csv") as fd:
 			"running": False,
 			"start": dummyTime,
 			"stop": dummyTime,
-			"best": best
+			"best": None
 		})
+
+with open("runs.csv", "r") as fd:
+	for line in fd:
+		line = line.strip()
+		if line == "":
+			continue
+
+		id, name, time, start, stop = line.split(",")
+		id = int(id)
+		start = dateparser.parse(start)
+		stop = dateparser.parse(stop)
+		time = stop - start
+		print(time)
+		
+		team = [x for x in filter(lambda x: x["id"] == id, teams)]
+		if len(team) == 0:
+			continue
+		else:
+			team = team[0]
+
+		if team["best"] == None or time < team["best"]:
+			team["start"] = start
+			team["stop"] = stop
+			team["best"] = time
+
+resortHighscore()
 
 def serialWorker():
 	ser = serial.Serial(sys.argv[1], 9600)
@@ -137,7 +149,7 @@ for i, path in enumerate(logos):
 if len(sys.argv) > 1:
 	worker = threading.Thread(target=serialWorker, name="serialWorker")
 	worker.daemon = True
-	worker.start()
+	#worker.start()
 
 cv2.namedWindow("dashboard", cv2.WND_PROP_FULLSCREEN)
 cv2.setWindowProperty("dashboard", cv2.WND_PROP_FULLSCREEN, 1)
@@ -167,52 +179,14 @@ while True:
 		w, h = putTextTopLeft(img, (x, y), formatTime(team))
 		y = y + h + 20
 
-	h, w, c = size
-	if editing != None:
-		if editingResult == None:
-			name = "unknown team"
-		else:
-			name = editingResult["name"]
-		putText(img, (5, h - 5), "Team auf Bahn %s: %d (%s)" % (laneIdToText(editing), editingId, name), scale=1)
-
-	x, y = size[1] / 2 + 20, 20
+	x, y = size[1] // 2 + 20, 20
 	for team in highscores:
 		w1, h1 = putTextTopLeft(img, (x, y), formatTime(team, team["best"]))
 		w2, h2 = putTextTopLeft(img, (x + w1 + 10, y), team["name"])
 		y = y + max(h1, h2) + 20
 
 	cv2.imshow("dashboard", img)
-	rawKey = cv2.waitKey(1000 / fps) & 0xfffff
+	rawKey = cv2.waitKey(int(1000 / fps)) & 0xfffff
 	key = rawKey & 0xff
 	if key == ord('q'):
 		break
-	elif rawKey == 0x001b: #esc
-		editing = None
-		editingId = 0
-	elif rawKey == 0x000a: #enter
-		if editingResult != None:
-			activeTeams[editing] = editingResult
-			editing = None
-			editingId = 0
-	elif rawKey == 0xff08: #backspace
-		editingId = editingId / 10
-		resetEditingResult()
-	elif key >= ord('a') and key < ord('a') + laneCount:
-		i = key - ord('a')
-		if activeTeams[i] and activeTeams[i]["running"]:
-			stopTeam(activeTeams[i])
-		else:
-			editing = i
-			editingId = 0
-			resetEditingResult()
-	elif key >= ord('0') and key <= ord('9'):
-		if editing != None:
-			editingId = editingId * 10 + key - ord('0')
-			resetEditingResult()
-		else:
-			i = key - ord('0')
-			if i < len(activeTeams) and activeTeams[i] != None:
-				if activeTeams[i]["running"]:
-					stopTeam(activeTeams[i])
-				else:
-					startTeam(activeTeams[i])
