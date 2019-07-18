@@ -12,9 +12,9 @@ size = (1080, 1920, 3)
 color = (0, 0, 0)
 laneCount = 2
 logos = [
-	"solarcup.jpg",
-	"buergernetz.png",
-	"esv.jpg"
+	"logos/solarcup.jpg",
+	"logos/buergernetz.png",
+	"logos/esv.jpg"
 ]
 fps = 60
 dummyTime = datetime(2018, 1, 1)
@@ -85,6 +85,19 @@ def stopAllTeams():
 	activeTeams[:] = None
 	resortHighscore()
 
+def serialWorker():
+	ser = serial.Serial(sys.argv[1], 9600)
+	while True:
+		char = ser.read(1)
+		if char == "1": #"A_start"
+			startTeam(activeTeams[0])
+		elif char == "2": #"A_stop"
+			stopTeam(activeTeams[0])
+		elif char == "3": #"B_start"
+			startTeam(activeTeams[1])
+		elif char == "4": #"B_stop"
+			stopTeam(activeTeams[1])
+
 with open("teams.csv", "r") as fd:
 	for line in fd:
 		line = line.strip()
@@ -113,7 +126,6 @@ with open("runs.csv", "r") as fd:
 		start = dateparser.parse(start)
 		stop = dateparser.parse(stop)
 		time = stop - start
-		print(time)
 		
 		team = [x for x in filter(lambda x: x["id"] == id, teams)]
 		if len(team) == 0:
@@ -127,19 +139,6 @@ with open("runs.csv", "r") as fd:
 			team["best"] = time
 
 resortHighscore()
-
-def serialWorker():
-	ser = serial.Serial(sys.argv[1], 9600)
-	while True:
-		char = ser.read(1)
-		if char == "1": #"A_start"
-			startTeam(activeTeams[0])
-		elif char == "2": #"A_stop"
-			stopTeam(activeTeams[0])
-		elif char == "3": #"B_start"
-			startTeam(activeTeams[1])
-		elif char == "4": #"B_stop"
-			stopTeam(activeTeams[1])
 
 logos = logos[::-1]
 for i, path in enumerate(logos):
