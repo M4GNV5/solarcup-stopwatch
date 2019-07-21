@@ -1,8 +1,15 @@
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from urllib.parse import parse_qs, quote
+from datetime import datetime
 import re, json, threading
 
 ADDR, PORT = ("0.0.0.0", 8080)
+dummyTime = datetime(2018, 1, 1)
+
+def saveTeams():
+	with open("teams.csv", "w") as fd:
+		for team in teams:
+			fd.write("%d,%s\n" % (team["id"], team["name"]))
 
 class RequestHandler(BaseHTTPRequestHandler):
 	def send(self, msg):
@@ -75,10 +82,9 @@ class RequestHandler(BaseHTTPRequestHandler):
 				self.send_response(200)
 				self.end_headers()
 				self.send("ok")
-		elif action == "delete":
+		elif action == "delrun":
 			delId = int(getArg("team"))
 			delStart = getArg("start").strip()
-
 
 			index = None
 			for i, run in enumerate(runs):
@@ -103,6 +109,56 @@ class RequestHandler(BaseHTTPRequestHandler):
 				self.send_response(200)
 				self.end_headers()
 				self.send("ok")
+		elif action == "addteam":
+			id = int(getArg("id"))
+			name = getArg("name").strip()
+
+			for team in teams:
+				if team["id"] == id or team["name"] == name:
+					self.send_response(400)
+					self.end_headers()
+					self.send("already exists")
+					return
+
+			teams.append({
+				"id": id,
+				"name": name,
+				"running": False,
+				"start": dummyTime,
+				"stop": dummyTime,
+				"best": None
+			})
+			saveTeams()
+
+			self.send_response(200)
+			self.end_headers()
+			self.send("ok")
+		elif action == "delteam":
+			id = int(getArg("id"))
+
+			index = None
+			for i, team in enumerate(teams):
+				if team["id"] == id:
+					index = i
+					break
+
+			if index is None:
+				self.send_response(404)
+				self.end_headers()
+				self.send("team not found")
+			else:
+				for i, team in enumerate(activeTeams):
+					if team == teams[index]:
+						activeTeams[i] = None
+
+				del teams[index]
+				saveTeams()
+
+				self.send_response(200)
+				self.end_headers()
+				self.send("ok")
+
+
 
 def webserverWorker(httpd):
 	print("Webserver started on Port " + str(PORT))
