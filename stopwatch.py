@@ -2,6 +2,7 @@ from threading import Thread
 from time import sleep
 from datetime import datetime
 from dateutil import parser as dateparser
+from webinterface.webserver import startWebserver
 import cv2
 import numpy as np
 #import serial
@@ -16,12 +17,13 @@ logos = [
 	"logos/buergernetz.png",
 	"logos/esv.jpg"
 ]
-fps = 60
+fps = 10
 dummyTime = datetime(2018, 1, 1)
 
 teams = []
 activeTeams = [None] * laneCount
 highscores = []
+runs = []
 
 def laneIdToText(id):
 	return chr(ord('A') + id)
@@ -39,6 +41,24 @@ def putTextTopLeft(img, pos, text, scale=2, thick=3, font=cv2.FONT_HERSHEY_SIMPL
 	x, y = pos
 	putText(img, (x, y + h), text, scale, thick, font)
 	return w, h
+
+def resetBestscores():
+	for team in teams:
+		team["best"] = None
+
+	for id, name, start, stop in runs:
+		time = stop - start
+
+		team = [x for x in filter(lambda x: x["id"] == id, teams)]
+		if len(team) == 0:
+			continue
+		else:
+			team = team[0]
+
+		if team["best"] == None or time < team["best"]:
+			team["start"] = start
+			team["stop"] = stop
+			team["best"] = time
 
 def resortHighscore():
 	global highscores
@@ -68,6 +88,8 @@ def stopTeam(team):
 		diff = team["stop"] - team["start"]
 		if team["best"] == None or diff < team["best"]:
 			team["best"] = diff
+
+		runs.append((team["id"], team["name"], team["start"], team["stop"]))
 
 		with open("runs.csv", "a") as fd:
 			fd.write("%s,%s,%s,%s,%s\n"
@@ -118,7 +140,7 @@ with open("teams.csv", "r") as fd:
 with open("runs.csv", "r") as fd:
 	for line in fd:
 		line = line.strip()
-		if line == "":
+		if line == "" or line[0] == "#":
 			continue
 
 		id, name, time, start, stop = line.split(",")
@@ -127,17 +149,9 @@ with open("runs.csv", "r") as fd:
 		stop = dateparser.parse(stop)
 		time = stop - start
 		
-		team = [x for x in filter(lambda x: x["id"] == id, teams)]
-		if len(team) == 0:
-			continue
-		else:
-			team = team[0]
+		runs.append((id, name, start, stop))
 
-		if team["best"] == None or time < team["best"]:
-			team["start"] = start
-			team["stop"] = stop
-			team["best"] = time
-
+resetBestscores()
 resortHighscore()
 
 logos = logos[::-1]
@@ -149,6 +163,8 @@ if len(sys.argv) > 1:
 	worker = threading.Thread(target=serialWorker, name="serialWorker")
 	worker.daemon = True
 	#worker.start()
+
+startWebserver(teams, activeTeams, runs, resetBestscores, resortHighscore, formatTime)
 
 cv2.namedWindow("dashboard", cv2.WND_PROP_FULLSCREEN)
 cv2.setWindowProperty("dashboard", cv2.WND_PROP_FULLSCREEN, 1)

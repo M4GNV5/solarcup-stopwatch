@@ -1,0 +1,112 @@
+<html>
+	<head>
+		<style>
+			table
+			{
+				border-spacing: 10px;
+    			border-collapse: separate;
+			}
+		</style>
+	</head>
+	<body onload="loadData()">
+		<h2>Teams</h2>
+		<table>
+			<thead>
+				<tr>
+					<th>ID</th>
+					<th>Name</th>
+					<th>Best Time</th>
+					<th>Actions</th>
+				</tr>
+			</thead>
+			<tbody id="teams">
+			</tbody>
+		</table>
+
+		<h2>Runs</h2>
+		<table>
+			<thead>
+				<tr>
+					<th>ID</th>
+					<th>Name</th>
+					<th>Duration</th>
+					<th>Timestamp</th>
+					<th>Actions</th>
+				</tr>
+			</thead>
+			<tbody id="runs">
+			</tbody>
+		</table>
+
+		<script type="text/javascript">
+			var teams = document.getElementById("teams");
+			var runs = document.getElementById("runs");
+
+			var teamButtons = "<button onclick=\"setLane(%, 0)\">Bahn A</button>" +
+				"<button onclick=\"setLane(%, 1)\">Bahn B</button>";
+
+			var runButtons = "<button onclick=\"deleteRun(%)\">Delete</button>";
+			
+			function ajax(params, cb)
+			{
+				var request = new XMLHttpRequest();
+
+				request.open("POST", "/");
+				request.setRequestHeader('Content-type', 'application/x-www-form-urlencoded');
+				request.addEventListener('load', function(event) {
+					if (request.status == 200)
+						cb(request.responseText);
+					else
+						alert("Error: " + request.status + " " + request.statusText);
+				});
+				request.send(params);
+			}
+
+			function loadData()
+			{
+				ajax("action=load", function(text)
+				{
+					teams.innerHTML = "";
+					runs.innerHTML = "";
+
+					var data = JSON.parse(text);
+
+					for(var team of data.teams)
+					{
+						teams.innerHTML += "<tr>" +
+								"<td>" + team.id + "</td>" +
+								"<td>" + team.name + "</td>" +
+								"<td>" + team.best + "</td>" +
+								"<td>" + teamButtons.replace(/%/g, team.id) + "</td>" +
+							"</tr>";
+					}
+
+					for(var run of data.runs)
+					{
+						var deleteArgs = run.id + ", " + JSON.stringify(run.start).replace(/"/g, "'");
+						runs.innerHTML += "<tr>" +
+								"<td>" + run.id + "</td>" +
+								"<td>" + run.name + "</td>" +
+								"<td>" + run.time + "</td>" +
+								"<td>" + (new Date(run.start)).toLocaleString() + "</td>" +
+								"<td>" + runButtons.replace(/%/g, deleteArgs) + "</td>" +
+							"</tr>";
+					}
+				});
+			}
+
+			function setLane(team, lane)
+			{
+				ajax("action=setlane&team=" + team + "&lane=" + lane, loadData);
+			}
+
+			function deleteRun(team, start)
+			{
+				if(!confirm("Do you really want to delete this run?"))
+					return;
+
+				ajax("action=delete&team=" + team + "&start=" + start, loadData);
+			}
+		</script>
+	</body>
+</html>
