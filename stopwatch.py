@@ -5,7 +5,7 @@ from dateutil import parser as dateparser
 from webinterface.webserver import startWebserver
 import cv2
 import numpy as np
-#import serial
+import serial
 import sys
 import threading
 
@@ -17,7 +17,7 @@ logos = [
 	"logos/buergernetz.png",
 	"logos/esv.jpg"
 ]
-fps = 10
+fps = 30
 dummyTime = datetime(2018, 1, 1)
 
 teams = []
@@ -109,15 +109,16 @@ def stopAllTeams():
 
 def serialWorker():
 	ser = serial.Serial(sys.argv[1], 9600)
+	print("Connecting to serial " + sys.argv[1])
 	while True:
 		char = ser.read(1)
-		if char == "1": #"A_start"
+		if char == b"1": #"A_start"
 			startTeam(activeTeams[0])
-		elif char == "2": #"A_stop"
+		elif char == b"2": #"A_stop"
 			stopTeam(activeTeams[0])
-		elif char == "3": #"B_start"
+		elif char == b"3": #"B_start"
 			startTeam(activeTeams[1])
-		elif char == "4": #"B_stop"
+		elif char == b"4": #"B_stop"
 			stopTeam(activeTeams[1])
 
 with open("teams.csv", "r") as fd:
@@ -162,7 +163,7 @@ for i, path in enumerate(logos):
 if len(sys.argv) > 1:
 	worker = threading.Thread(target=serialWorker, name="serialWorker")
 	worker.daemon = True
-	#worker.start()
+	worker.start()
 
 startWebserver(teams, activeTeams, runs, resetBestscores, resortHighscore, formatTime)
 

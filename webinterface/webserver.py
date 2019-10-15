@@ -129,6 +129,7 @@ class RequestHandler(BaseHTTPRequestHandler):
 				"best": None
 			})
 			saveTeams()
+			resortHighscore()
 
 			self.send_response(200)
 			self.end_headers()
@@ -153,6 +154,7 @@ class RequestHandler(BaseHTTPRequestHandler):
 
 				del teams[index]
 				saveTeams()
+				resortHighscore()
 
 				self.send_response(200)
 				self.end_headers()
