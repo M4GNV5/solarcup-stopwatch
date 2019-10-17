@@ -149,7 +149,7 @@ with open("runs.csv", "r") as fd:
 		start = dateparser.parse(start)
 		stop = dateparser.parse(stop)
 		time = stop - start
-		
+
 		runs.append((id, name, start, stop))
 
 resetBestscores()
